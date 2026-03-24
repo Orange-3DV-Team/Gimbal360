@@ -851,12 +851,62 @@ url={https://orange-3dv-team.github.io/MoCam}
             });
         }
 
-        document.addEventListener('DOMContentLoaded', function () {
-            initViewer();
-            initGallery();
-            initTeaser();
-        });
 
+        /* =========================================================================
+        Asset Preloader
+        ========================================================================= */
+        function preloadImages(urls) {
+            return Promise.all(urls.map(url => {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = resolve;
+                    img.onerror = resolve; // Resolve even on error to not block everything
+                    img.src = url;
+                });
+            }));
+        }
+
+        function getAllAssetUrls() {
+            const urls = [];
+            
+            // Teaser assets
+            teaserData.forEach(sample => {
+                urls.push(sample.thumb);
+                ['on', 'off'].forEach(state => {
+                    urls.push(sample[state].input);
+                    urls.push(sample[state].projected);
+                    urls.push(sample[state].final);
+                    urls.push(sample[state].seam);
+                });
+            });
+            
+            // Gallery/viewer assets
+            panoramas.forEach(pano => {
+                urls.push(pano.inputSrc);
+                urls.push(pano.panoSrc);
+            });
+            
+            // Static assets
+            urls.push('./assets/gimbal360-logo.png');
+            urls.push('./assets/diagrams/Framework.png');
+            
+            // Deduplicate
+            return [...new Set(urls)];
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Show a loading state (optional)
+            document.body.style.opacity = '0.5';
+            document.body.style.transition = 'opacity 0.5s ease';
+            
+            preloadImages(getAllAssetUrls()).then(() => {
+                // All images loaded — initialize everything
+                document.body.style.opacity = '1';
+                initViewer();
+                initGallery();
+                initTeaser();
+            });
+        });
 
 
     </script>
