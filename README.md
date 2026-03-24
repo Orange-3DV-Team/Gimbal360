@@ -1,7 +1,7 @@
 # Gimbal360: Differentiable Auto-Leveling for Canonicalized $360^\circ$ Panoramic Image Completion
 
 <div align="center">
-  <img src="asset\gimbal360.png" alt="Gimbal360" width="200"/>
+  <img src="asset\gimbal360.png" alt="Gimbal360" width="360"/>
 </div>
 
 **TL;DR:** Gimbal360 robustly canonicalizes unposed perspective images using differentiable auto-leveling, enabling structurally consistent and seamless 360° panorama generation.
