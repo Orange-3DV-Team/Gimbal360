@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gimbal360</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- MathJax Configuration and Script -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['\\(', '\\)']]
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <!-- Include Three.js for the 360 viewer -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Include Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #fafafa;
+            color: #333;
+        }
+
+        .viewer-container {
+            cursor: grab;
+        }
+
+        .viewer-container:active {
+            cursor: grabbing;
+        }
+
+        .nav-link {
+            transition: all 0.2s ease;
+        }
+
+        .nav-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        /* Thumbnail hover effect */
+        .gallery-item {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .gallery-item:hover {
+            transform: scale(1.02);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .active-thumb {
+            ring: 4px;
+            ring-color: #3b82f6;
+            border: 3px solid #3b82f6;
+        }
+
+        .scroll-container::-webkit-scrollbar {
+            height: 10px;
+        }
+        .scroll-container::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+            border-radius: 8px;
+        }
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 8px;
+        }
+        .scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+
+        /* Make sure MathJax inside bold tags inherits the boldness */
+        .font-bold mjx-container[jax="CHTML"],
+        h2 mjx-container,
+        h3 mjx-container {
+            font-weight: bold;
+        }
+
+        /* Teaser Toggle Styles */
+        .toggle-knob { transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1); }
+        .toggle-on .toggle-knob { transform: translateX(32px); } /* Fixed slide distance */
+        .toggle-off .toggle-knob { transform: translateX(2px); }
+        
+        /* Diffusion Noise Simulation */
+        /* .noise-bg {
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch' seed='0'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            background-size: cover;
+        } */
+
+        /* Fallback styling for broken images during development
+        img {
+            background-color: #e5e7eb;
+            color: #6b7280;
+            text-align: center;
+            line-height: 2;
+        } */
+
+        #teaser-noise-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+    </style>
+</head>
+
+<body class="antialiased">
+
+    <!-- Header / Title Section -->
+    <header class="max-w-7xl mx-auto px-4 pt-1 pb-8 text-center">
+        <!-- PLACEHOLDER: Insert your logo path here -->
+        <img src="./assets/gimbal360-logo.png" alt="Gimbal360 Logo" class="h-60 md:h-60 mx-auto mb-0 object-contain">
+
+        <!-- <h1 class="text-5xl md:text-5xl font-medium tracking-normal text-gray-800 mb-12 leading-relaxed">
+            <span
+                class="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-blue-500 to-purple-600">Gimbal360:</span>
+            Differentiable Auto-Leveling for Canonicalized \(360^\circ\)
+            <span class="text-gray-900">Panoramic Image Completion</span>
+        </h1> -->
+        <h1 class="text-4xl md:text-5xl font-medium tracking-noraml text-gray-800 mb-6" style="line-height: 1.3;">
+            <span class="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-blue-500 to-purple-600">Gimbal360:</span>
+            Differentiable Auto-Leveling for Canonicalized <br> \(360^\circ\)
+            <span class="text-gray-900">Panoramic Image Completion</span>
+        </h1>
+
+        <!-- Affiliations -->
+        
+        <div class="text-2xl md:text-2xl font-medium text-gray-700  mb-4">
+            <p>Orange Team</p>
+        </div>
+       
+        <!-- Authors -->
+        
+        <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-lg text-blue-600 mb-8 font-medium">
+            <a class="text-blue-600 transition-all duration-300 hover:text-purple-600 hover:bg-purple-100 px-2 py-1 rounded-md">Yuqin Lu</a>
+            <a class="text-blue-600 transition-all duration-300 hover:text-purple-600 hover:bg-purple-100 px-2 py-1 rounded-md">Haofeng Liu</a>
+            <a class="text-blue-600 transition-all duration-300 hover:text-purple-600 hover:bg-purple-100 px-2 py-1 rounded-md">Yang Zhou</a>
+            <a class="text-blue-600 transition-all duration-300 hover:text-purple-600 hover:bg-purple-100 px-2 py-1 rounded-md">Jun Liang</a>
+            <a class="text-blue-600 transition-all duration-300 hover:text-purple-600 hover:bg-purple-100 px-2 py-1 rounded-md">Shengfeng He</a>
+            <a class="text-blue-600 transition-all duration-300 hover:text-purple-600 hover:bg-purple-100 px-2 py-1 rounded-md">Jing Li</a>
+        </div>
+       
+
+        <!-- Links/Badges -->
+        <div class="flex flex-wrap justify-center gap-5 mb-8">
+            <a href="#"
+                class="nav-link flex items-center gap-2 bg-gray-800 text-white px-5 py-2.5 rounded-full font-medium hover:bg-gray-700">
+                <i data-lucide="file-text" class="w-5 h-5"></i> Paper
+            </a>
+            <a href="#"
+                class="nav-link flex items-center gap-2 bg-gray-800 text-white px-5 py-2.5 rounded-full font-medium hover:bg-gray-700">
+                <i data-lucide="github" class="w-5 h-5"></i> Code (Coming Soon)
+            </a>
+            <a href="#"
+                class="nav-link flex items-center gap-2 bg-gray-800 text-white px-5 py-2.5 rounded-full font-medium hover:bg-gray-700">
+                <i data-lucide="database" class="w-5 h-5"></i> Dataset (Coming Soon)
+            </a>
+        </div>
+    </header>
+
+    <!-- Interactive Viewer & Result Selection Area -->
+    <main class="max-w-7xl mx-auto px-4 mb-16">
+
+        <!-- Teaser Section: Auto-Leveling Comparison -->
+        <section class="mb-8 border-gray-200 pb-8">
+            <div class="flex flex-col items-center mb-8">
+                <!-- <h2 class="text-3xl font-bold text-gray-900 mb-2">TL;DR</h2> -->
+                <p class="text-gray-600 mb-6  max-w-6xl text-lg">
+                    <strong>TL;DR</strong>: Gimbal360 robustly canonicalizes unposed perspective images using differentiable auto-leveling, enabling structurally consistent and seamless 360° panorama generation.
+                </p>
+                
+                <!-- Toggle Switch -->
+                <div class="flex items-center gap-3 bg-gray-50 px-5 py-2.5 rounded-full border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow" id="leveling-toggle-container">
+                    <span class="font-bold text-gray-800 mr-2">Auto-Leveling:</span>
+                    <span class="font-medium text-gray-500 transition-colors w-8 text-right" id="toggle-off-text">OFF</span>
+                    <button id="leveling-toggle" class="w-14 h-7 bg-gray-300 rounded-full relative transition-colors duration-300 focus:outline-none toggle-off">
+                        <div class="toggle-knob w-5 h-5 bg-white rounded-full absolute top-1 left-[2px] shadow-md"></div>
+                    </button>
+                    <span class="font-bold text-blue-600 transition-colors w-8" id="toggle-on-text">ON</span>
+                </div>
+            </div>
+
+            <!-- 3-Column Display -->
+            <div class="flex flex-col lg:flex-row gap-4 bg-white p-4 md:p-6 rounded-2xl shadow-xl border border-gray-100 items-stretch">
+                
+                <!-- Left: Input Perspective (16:9 ratio -> flex value 16) -->
+                <div class="flex flex-col" style="flex: 7;">
+                    <h3 class="text-sm font-bold text-gray-700 mb-3 text-center flex items-center justify-center gap-1.5 h-10"><i data-lucide="camera" class="w-4 h-4 text-blue-500"></i> Input Perspective</h3>
+                    
+                    <div class="flex-grow flex items-center">
+                        <div class="w-full aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-inner">
+                            <img id="teaser-input" src="" class="w-full h-auto block" alt="Input">
+                        </div>
+                    </div>
+                    
+                    <!-- Teaser Sample Selector -->
+                    <div class="flex justify-center gap-2 mt-4" id="teaser-sample-selector">
+                        <!-- Buttons injected by JS -->
+                    </div>
+                </div>
+
+                <!-- Middle: ERP Canvas (2:1 ratio -> equivalent to 18:9 -> flex value 18) -->
+                <div class="flex flex-col" style="flex: 18;">
+                    <h3 class="text-sm font-bold text-gray-700 mb-3 text-center flex items-center justify-center gap-1.5 h-10"><i data-lucide="sparkles" class="w-4 h-4 text-blue-500"></i> 360° Panorama Generation (ERP)</h3>
+                    
+                    <div class="relative w-full aspect-[2/1] bg-gray-200 rounded-lg overflow-hidden border border-gray-200 shadow-inner">
+                        
+                        <!-- Layer 1 (BOTTOM, z-10): Final Generated ERP -->
+                        <img id="teaser-final" src="./assets/teaser/sample1_final_on.png" class="absolute inset-0 w-full h-full object-cover z-10" alt="Final ERP">
+                        
+                        <!-- Layer 2 (MIDDLE, z-20): Simulated Noise/Diffusion (Solid backdrop over Final Image) -->
+                        <div id="teaser-diffusion-overlay" class="absolute inset-0 z-20 transition-opacity">
+                            <canvas id="teaser-noise-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
+                        </div>
+
+                        <!-- Layer 3 (TOP, z-30): Projected Input (Permanent top layer with transparent background) -->
+                        <img id="teaser-projected" src="./assets/teaser/sample1_projected_on.png" class="absolute inset-0 w-full h-full object-cover z-30" alt="Projected">
+                        
+                    </div>
+                </div>
+
+                <!-- Right: Seam Magnifier (2:3 ratio -> equivalent to 6:9 -> flex value 6) -->
+                <div class="flex flex-col" style="flex: 6;">
+                    <h3 class="text-sm font-bold text-gray-700 mb-3 text-center flex items-center justify-center gap-1.5 h-10"><i data-lucide="zoom-in" class="w-4 h-4 text-blue-500"></i> Seam Visualization</h3>
+                    
+                    <div class="w-full aspect-[2/3] max-w-[200px] lg:max-w-none mx-auto bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-inner relative group">
+                        <img id="teaser-seam" src="./assets/teaser/sample1_seam_on.jpg" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="Seam">
+                        <div class="absolute inset-0 border-4 border-red-500/60 rounded-lg pointer-events-none"></div>
+                        <div class="absolute bottom-2 right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow">SEAM CROP</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- Viewer Layout -->
+        <h2 class="text-2xl font-bold mb-4 text-gray-900 border-b pb-2">Demo</h2>
+        <div class="bg-white rounded-2xl shadow-xl p-4 md:p-6 mb-8 border border-gray-100">
+            <div class="flex flex-col md:flex-row gap-6">
+
+                <!-- Input Image Column -->
+                <div class="w-full lg:w-1/4 flex flex-col">
+                    <h2 class="text-lg font-bold flex items-center justify-center gap-2 text-gray-800 mb-4">
+                        <i data-lucide="image" class="text-blue-500"></i> Input Image
+                    </h2>
+                    <div
+                        class="flex-grow flex flex-col justify-center ">
+                        <img id="current-input-image" src="" alt="Input Perspective" class="w-auto h-auto rounded-lg border border-gray-300 shadow-md">
+                    </div>
+                </div>
+
+                <!--  Full ERP Panorama Column -->
+                <div class="w-full lg:w-1/2 flex flex-col">
+                    <h2 class="text-lg font-bold flex items-center justify-center gap-2 text-gray-800 mb-4">
+                        <i data-lucide="rotate-3d" class="text-blue-500"></i> Seamless 360° Panorama Generation
+                    </h2>
+                    <div class="flex-grow flex flex-col justify-center">
+                        <img id="current-erp-image" src="" alt="Full ERP Panorama" class="w-full aspect-[2/1] object-cover rounded-lg border border-gray-300 shadow-md">
+                    </div>
+                </div>
+
+
+                <!-- Interactive Viewer Column -->
+                <div class="w-full h-full lg:w-1/4 flex flex-col">
+                    <div class="flex justify-center items-center mb-4">
+                        <h2 class="text-xl font-bold flex items-center gap-2 text-gray-800">
+                            <i data-lucide="view" class="text-blue-500"></i> Interactive Viewer
+                        </h2>
+                    </div>
+
+                    <!-- ThreeJS Container -->
+                    <div id="viewer-container"
+                        class="viewer-container w-full aspect-square bg-gray-200 rounded-lg overflow-hidden relative shadow-inner">
+                        <!-- Overlay instructions -->
+                        <div id="interaction-hint"
+                            class="absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-500 z-10">
+                            <div
+                                class="bg-black/50 text-white px-6 py-3 rounded-full backdrop-blur-sm flex items-center gap-2 shadow-lg">
+                                <i data-lucide="mouse-pointer-click"></i> Click and drag to explore
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gallery / Result Selection directly below the viewer -->
+        <section class="mb-16">
+            <div class="flex items-center justify-between mb-6 border-b pb-2">
+                <h2 class="text-2xl font-bold text-gray-900">Select an Input</h2>
+                <p class="text-gray-600 text-sm">Click an image below to generate its panorama</p>
+            </div>
+
+            <!-- <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6" id="gallery-container"> -->
+            <div class="flex overflow-x-auto gap-6 pb-6 pt-2 scroll-container snap-x" id="gallery-container">
+                <!-- Gallery items will be injected here by JS -->
+            </div>
+        </section>
+
+        <!-- Abstract Section -->
+        <section class="mb-16">
+            <h2 class="text-2xl font-bold mb-4 text-gray-900 border-b pb-2">Abstract</h2>
+            <p class="text-gray-700 leading-relaxed text-lg text-justify">
+                Diffusion models excel at 2D outpainting, but extending them to \(360^\circ\) panoramic completion 
+                from unposed perspective images is challenging due to the geometric and topological mismatch between 
+                perspective projections and spherical panoramas.
+                We present <strong>Gimbal360</strong>, a principled framework that explicitly bridges perspective observations 
+                and spherical panoramas. We introduce a Canonical Viewing Space that regularizes projective geometry and provides 
+                a consistent intermediate representation between the two domains. To anchor in-the-wild inputs to this space, 
+                we propose a Differentiable Auto-Leveling module that stabilizes feature orientation without requiring camera parameters 
+                at inference. Panoramic generation also introduces a topological challenge. Standard generative architectures 
+                assume a bounded Euclidean image plane, while Equirectangular Projection (ERP) panoramas exhibit intrinsic \(S^1\) periodicity. 
+                Euclidean operations therefore break boundary continuity. We address this mismatch by enforcing topological equivariance in 
+                the latent space to preserve seamless periodic structure. To support this formulation, we introduce <strong>Horizon360</strong>, a curated 
+                large-scale dataset of gravity-aligned panoramic environments. Extensive experiments show that explicitly standardizing 
+                geometric and topological priors enables Gimbal360 to achieve state-of-the-art performance in structurally consistent \(360^\circ\) scene completion.
+            </p>
+        </section>
+
+        <!-- Method Section -->
+        <section class="mb-16">
+            <h2 class="text-2xl font-bold mb-4 text-gray-900 border-b pb-2">Methodology</h2>
+            <div class="bg-gray-50 rounded-xl p-6 text-center border border-gray-200 mb-6">
+                <!-- Architecture diagram image -->
+                <img src="./assets/diagrams/Framework.png" alt="Gimbal360 Architecture Diagram"
+                    class="w-full max-w-7xl mx-auto rounded-lg shadow-sm bg-gray-50">
+            </div>
+            <p class="text-gray-700 leading-relaxed text-lg">
+                Given a perspective sample from our <strong>Horizon360 Dataset</strong>, the <strong>Differentiable
+                    Auto-Leveling</strong> module predicts a rigid correspondence field to warp the perspective image
+                into a gravity-aligned, yaw-centered <strong>Canonical Viewing Space</strong>. During
+                <strong>Topologically Equivariant Generation</strong>, a Siamese Consistency Loss between the standard
+                and horizontally shifted latent streams forces the network to natively respect the continuous \(S^1\)
+                boundary.
+            </p>
+        </section>
+
+        <!-- Citation (Commented out for blind review) -->
+        
+        <!-- <section class="mb-16">
+            <h2 class="text-2xl font-bold mb-4 text-gray-900 border-b pb-2">BibTeX</h2>
+            <div class="bg-gray-100 p-4 rounded-lg overflow-x-auto">
+                <pre class="text-sm text-gray-800"><code>@article{smith2026panogen,
+title={PanoGen: High-Fidelity 360-Degree Panorama Generation from Images},
+author={Smith, Alice and Johnson, Bob and Lee, Charlie and Prince, Diana},
+journal={arXiv preprint arXiv:2603.00000},
+year={2026}
+}</code></pre>
+            </div>
+        </section> -->
+       
+    </main>
+
+    <footer class="bg-gray-900 text-gray-400 py-8 text-center">
+        <!-- <p>&copy; 2026 Vision & Graphics Lab. All rights reserved.</p> -->
+        <p>&copy; 2026 Orange Team. All rights reserved.</p>
+        <p class="text-sm mt-2">This project is intended solely for academic research and effect demonstration.</p>
+    </footer>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        /* =========================================================================
+           Three.js 360 Viewer Setup
+           ========================================================================= */
+        const container = document.getElementById('viewer-container');
+        const hint = document.getElementById('interaction-hint');
+        let camera, scene, renderer, sphereMesh;
+        let isUserInteracting = false;
+        let onPointerDownPointerX = 0, onPointerDownPointerY = 0;
+        let lon = 180, onPointerDownLon = 0;
+        let lat = 0, onPointerDownLat = 0;
+        let phi = 0, theta = 0;
+
+        function initViewer() {
+            // Setup camera
+            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 1, 1100);
+            camera.target = new THREE.Vector3(0, 0, 0);
+
+            // Setup scene
+            scene = new THREE.Scene();
+
+            // Setup geometry (inverted sphere)
+            const geometry = new THREE.SphereGeometry(500, 60, 40);
+            geometry.scale(-1, 1, 1); // Invert to look inside
+
+            // Setup material
+            const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            sphereMesh = new THREE.Mesh(geometry, material);
+            scene.add(sphereMesh);
+
+            // Setup renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            // Event Listeners
+            container.addEventListener('mousedown', onPointerDown);
+            container.addEventListener('mousemove', onPointerMove);
+            container.addEventListener('mouseup', onPointerUp);
+            container.addEventListener('mouseleave', onPointerUp);
+
+            // Touch events for mobile
+            container.addEventListener('touchstart', onPointerDown, { passive: false });
+            container.addEventListener('touchmove', onPointerMove, { passive: false });
+            container.addEventListener('touchend', onPointerUp);
+
+            window.addEventListener('resize', onWindowResize);
+
+            // Load initial texture
+            if (panoramas.length > 0) {
+                updateViewerTexture(panoramas[0].panoSrc);
+            }
+
+            // Start animation loop
+            animate();
+        }
+
+        function updateViewerTexture(imageUrl) {
+            const textureLoader = new THREE.TextureLoader();
+            textureLoader.load(imageUrl, (texture) => {
+                // Ensure high quality filtering
+                texture.generateMipmaps = true;
+                texture.minFilter = THREE.LinearMipmapLinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+                sphereMesh.material.map = texture;
+                sphereMesh.material.needsUpdate = true;
+            });
+        }
+
+        // --- Interaction Handlers ---
+        function onPointerDown(event) {
+            if (event.cancelable) event.preventDefault();
+            isUserInteracting = true;
+            hint.style.opacity = '0'; // Hide hint
+
+            let clientX = event.clientX || event.touches[0].clientX;
+            let clientY = event.clientY || event.touches[0].clientY;
+
+            onPointerDownPointerX = clientX;
+            onPointerDownPointerY = clientY;
+            onPointerDownLon = lon;
+            onPointerDownLat = lat;
+        }
+
+        function onPointerMove(event) {
+            if (!isUserInteracting) return;
+            if (event.cancelable) event.preventDefault();
+
+            let clientX = event.clientX || event.touches[0].clientX;
+            let clientY = event.clientY || event.touches[0].clientY;
+
+            // Adjust the multiplier for sensitivity
+            lon = (onPointerDownPointerX - clientX) * 0.15 + onPointerDownLon;
+            lat = (clientY - onPointerDownPointerY) * 0.15 + onPointerDownLat;
+        }
+
+        function onPointerUp() {
+            isUserInteracting = false;
+        }
+
+        function onWindowResize() {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            update();
+        }
+
+        function update() {
+            // Auto-rotate slowly if user isn't interacting
+            if (!isUserInteracting) {
+                lon += 0.05;
+            }
+
+            // Restrict vertical looking angles
+            lat = Math.max(-85, Math.min(85, lat));
+
+            phi = THREE.MathUtils.degToRad(90 - lat);
+            theta = THREE.MathUtils.degToRad(lon);
+
+            camera.target.x = 500 * Math.sin(phi) * Math.cos(theta);
+            camera.target.y = 500 * Math.cos(phi);
+            camera.target.z = 500 * Math.sin(phi) * Math.sin(theta);
+
+            camera.lookAt(camera.target);
+            renderer.render(scene, camera);
+        }
+
+        /* =========================================================================
+           Gallery & Application Logic
+           ========================================================================= */
+        const panoramaData = [
+            {
+                title: 'Wooden Bridge',
+                desc: " A wooden bridge adorned with festive garlands spans a frozen stream, leading through a snow-laden pine forest toward distant mountains bathed in golden sunrise light."
+            },
+            {
+                title: 'Desert Marketplace',
+                desc: "A vast desert marketplace sprawls beneath towering ancient stone structures, with canvas tents and wooden stalls arranged across rippled sand."
+            },
+            {
+                title: 'European Alleyway',
+                desc: "A charming cobblestone alleyway in a historic European quarter, flanked by stone buildings with colorful awnings and outdoor seating, bathed in golden hour sunlight."
+            },
+            {
+                title: 'Caf\u00e9', //  4
+                desc: "A spacious minimalist caf\u00e9 with a central marble counter, wooden tables and chairs lining floor-to-ceiling windows."
+            },
+            {
+                title: 'Serene Lakeside', //  5
+                desc: "A tranquil lakeside clearing enveloped by a dense forest, centered around a massive ancient tree with sprawling roots."
+            },
+            {
+                title: 'Stone Village Plaza', //  6
+                desc: "A serene, circular stone plaza surrounded by rounded, hobbit-like cottages with arched doorways and circular windows."
+            },
+            {
+                title: 'Luxurious Villa', //  7
+                desc: "A spacious Mediterranean-style villa with a long rectangular swimming pool surrounded by stone patios, manicured lawns, and vibrant flowering shrubs."
+            },
+            {
+                title: 'Fantasy Battlefield', //  8
+                desc: "A vibrant, cartoon-style fantasy village nestled in rolling green hills, featuring a winding path defended by towers and magical crystals."
+            },
+            {
+                title: 'Forest Cabin', //  9
+                desc: "A cozy wooden log cabin nestled in a dense, snow-laden evergreen forest, surrounded by towering pine trees and distant snow-capped mountains."
+            },
+            {
+                title: 'Living Room', //  10
+                desc: "A spacious, sunlit living room with a wooden sofa centered beneath arched windows, flanked by built-in shelves displaying handcrafted pottery, and a woven rug anchoring the seating area."
+            },
+            {
+                title: 'Home Office', //  11
+                desc: "A spacious, light-filled home office and living area with white walls and light wood flooring, featuring a central desk setup surrounded by comfortable seating."
+            },
+            {
+                title: 'Stone Cottage', //  12
+                desc: "A charming stone cottage sits at the heart of a dense autumn forest, bathed in the soft golden light of sunrise, with a winding cobblestone path leading to its wooden door."
+            },
+            {
+                title: 'Chinese Palace', //  13
+                desc: "A vast, symmetrical imperial courtyard flanked by red-painted pavilions with ornate golden roofs, leading to a central grand hall under a bright blue sky with scattered clouds."
+            },
+            {
+                title: 'Amusement Park', //  14
+                desc: "A sprawling amusement park featuring a colorful water play area with splash zones and shade sails, surrounded by themed buildings and lush greenery."
+            },
+            {
+                title: 'Kitchen-Dining Area', //  15
+                desc: "A sleek modern kitchen-dining space features a round marble table surrounded by dark chairs, with black cabinetry and a white striped backsplash."
+            },
+            {
+                title: 'Rural Landscape', //  16
+                desc: "A sun-drenched rural scene featuring a winding stone wall leading to a yellow farmhouse with terracotta roof, flanked by golden hay bales and vibrant red poppies."
+            },
+            {
+                title: 'Japanese Courtyard', //  17
+                desc: "A tranquil Japanese courtyard surrounded by blooming cherry trees, with traditional wooden buildings and stone pathways leading toward a distant snow-capped Mount Fuji."
+            },
+            {
+                title: 'Medieval Village', //  18
+                desc: "A sun-drenched medieval village courtyard surrounded by half-timbered thatched cottages, centered on a circular stone well."
+            },
+            {
+                title: 'Residential Street', //  19
+                desc: "A quiet residential street lined with traditional Japanese houses featuring tiled roofs and wooden latticework, surrounded by lush greenery and bordered by low stone walls and metal gates."
+            },
+            {
+                title: 'Traditional Garden', //  20
+                desc: "A tranquil classical Chinese garden featuring a stone arch bridge spanning a calm lake, with a cobblestone path leading toward it, flanked by lush green trees and shrubs."
+            },
+
+
+        ];
+
+        //  Automatically generate the IDs and File Paths!
+        const panoramas = panoramaData.map((item, index) => {
+            const fileNumber = (index + 1).toString().padStart(2, '0'); 
+            
+            return {
+                id: index + 1,
+                title: item.title,
+                desc: item.desc,
+                inputSrc: `./assets/inputs/scene${fileNumber}_input.png`,
+                panoSrc: `./assets/panoramas/scene${fileNumber}_pano.png`
+            };
+        });
+
+        function initGallery() {
+            const galleryContainer = document.getElementById('gallery-container');
+            const currentInputImg = document.getElementById('current-input-image');
+            const currentErpImg = document.getElementById('current-erp-image');
+
+            // Initialize the input image for the first item
+            if (panoramas.length > 0) {
+                currentInputImg.src = panoramas[0].inputSrc;
+                currentErpImg.src = panoramas[0].panoSrc;
+            }
+
+            panoramas.forEach((pano, index) => {
+                const div = document.createElement('div');
+                div.className = `gallery-item flex-none w-72 snap-start bg-white rounded-xl shadow-md overflow-hidden border-2 transition-all ${index === 0 ? 'border-blue-500 shadow-blue-200 shadow-lg' : 'border-transparent'}`;
+
+                div.innerHTML = `
+                    <div class="h-32 bg-gray-200 w-full overflow-hidden relative">
+                        <img src="${pano.inputSrc}" class="w-full h-full object-cover" alt="${pano.title} input thumbnail">
+                        <div class="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">Input Condition</div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-sm font-semibold text-gray-800 capitalize mb-1">${pano.title}</p>
+                        <p class="text-xs text-gray-600 line-clamp-2">${pano.desc}</p>
+                    </div>
+                `;
+
+                div.addEventListener('click', () => {
+                    // Update active styling
+                    document.querySelectorAll('.gallery-item').forEach(el => el.classList.remove('border-blue-500', 'shadow-blue-200', 'shadow-lg'));
+                    document.querySelectorAll('.gallery-item').forEach(el => el.classList.add('border-transparent'));
+                    div.classList.remove('border-transparent');
+                    div.classList.add('border-blue-500', 'shadow-blue-200', 'shadow-lg');
+
+                    // Update Viewer and Input Image side-by-side using real URLs
+                    updateViewerTexture(pano.panoSrc);
+                    currentInputImg.src = pano.inputSrc;
+                    currentErpImg.src = pano.panoSrc;
+
+                    // Reset view angle slightly
+                    lat = 0;
+                });
+
+                galleryContainer.appendChild(div);
+            });
+        }
+        
+        /* =========================================================================
+           Teaser Logic (Auto-Leveling Comparison & Diffusion Simulation)
+           ========================================================================= */
+        const teaserData = [
+            {
+                id: 1,
+                thumb: './assets/teaser/sample1_input.png', // PLACEHOLDER: Sample 1 Thumbnail
+                on: {
+                    input: './assets/teaser/sample1_input.png',         // PLACEHOLDER: Path to With Auto-Leveling Input
+                    projected: './assets/teaser/sample1_projected_on.png', // PLACEHOLDER: Path to With Auto-Leveling Projected ERP
+                    final: './assets/teaser/sample1_final_on.png',         // PLACEHOLDER: Path to With Auto-Leveling Final ERP
+                    seam: './assets/teaser/sample1_seam_on.png'            // PLACEHOLDER: Path to With Auto-Leveling Seam Crop
+                },
+                off: {
+                    input: './assets/teaser/sample1_input.png',        // PLACEHOLDER: Path to Without Auto-Leveling Input
+                    projected: './assets/teaser/sample1_projected_off.png',// PLACEHOLDER: Path to Without Auto-Leveling Projected ERP
+                    final: './assets/teaser/sample1_final_off.png',        // PLACEHOLDER: Path to Without Auto-Leveling Final ERP
+                    seam: './assets/teaser/sample1_seam_off.png'           // PLACEHOLDER: Path to Without Auto-Leveling Seam Crop
+                }
+            },
+            {
+                id: 2,
+                thumb: './assets/teaser/sample2_input.png', // PLACEHOLDER: Sample 2 Thumbnail
+                on: {
+                    input: './assets/teaser/sample2_input.png',
+                    projected: './assets/teaser/sample2_projected_on.png',
+                    final: './assets/teaser/sample2_final_on.png',
+                    seam: './assets/teaser/sample2_seam_on.png'
+                },
+                off: {
+                    input: './assets/teaser/sample2_input.png',
+                    projected: './assets/teaser/sample2_projected_off.png',
+                    final: './assets/teaser/sample2_final_off.png',
+                    seam: './assets/teaser/sample2_seam_off.png'
+                }
+            },
+            {
+                id: 3,
+                thumb: './assets/teaser/sample3_input.png', // PLACEHOLDER: Sample 3 Thumbnail
+                on: {
+                    input: './assets/teaser/sample3_input.png',
+                    projected: './assets/teaser/sample3_projected_on.png',
+                    final: './assets/teaser/sample3_final_on.png',
+                    seam: './assets/teaser/sample3_seam_on.png'
+                },
+                off: {
+                    input: './assets/teaser/sample3_input.png',
+                    projected: './assets/teaser/sample3_projected_off.png',
+                    final: './assets/teaser/sample3_final_off.png',
+                    seam: './assets/teaser/sample3_seam_off.png'
+                }
+            }
+        ];
+
+        let isAutoLevelingOn = true;
+        let currentTeaserSample = 0;
+
+        let animStep1, animStep2;
+
+        function initTeaser() {
+            const toggleContainer = document.getElementById('leveling-toggle-container');
+            const selectorContainer = document.getElementById('teaser-sample-selector');
+
+            teaserData.forEach((sample, index) => {
+                const btn = document.createElement('button');
+                btn.className = `w-14 h-10 rounded border-2 overflow-hidden focus:outline-none transition-all ${index === currentTeaserSample ? 'border-blue-500 shadow-md scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`;
+                btn.innerHTML = `<img src="${sample.thumb}" class="w-full h-full object-cover" alt="Sample ${sample.id}">`;
+                
+                btn.onclick = () => {
+                    if (currentTeaserSample === index) return; 
+                    currentTeaserSample = index;
+                    
+                    Array.from(selectorContainer.children).forEach((child, i) => {
+                        if (i === currentTeaserSample) {
+                            child.classList.add('border-blue-500', 'shadow-md', 'scale-105');
+                            child.classList.remove('border-transparent', 'opacity-60');
+                        } else {
+                            child.classList.remove('border-blue-500', 'shadow-md', 'scale-105');
+                            child.classList.add('border-transparent', 'opacity-60');
+                        }
+                    });
+
+                    updateTeaserUI(true);
+                };
+
+                selectorContainer.appendChild(btn);
+            });
+
+            toggleContainer.addEventListener('click', () => {
+                isAutoLevelingOn = !isAutoLevelingOn;
+                updateTeaserUI(true); 
+            });
+
+            updateTeaserUI(false);
+            setTimeout(playTeaserAnimation, 500);
+        }
+
+        function updateTeaserUI(playAnim = true) {
+            const toggleBtn = document.getElementById('leveling-toggle');
+            const textOn = document.getElementById('toggle-on-text');
+            const textOff = document.getElementById('toggle-off-text');
+            
+            if (isAutoLevelingOn) {
+                toggleBtn.classList.remove('toggle-off', 'bg-gray-300');
+                toggleBtn.classList.add('toggle-on', 'bg-blue-500');
+                textOn.classList.add('text-blue-600', 'font-bold');
+                textOn.classList.remove('text-gray-500', 'font-medium');
+                textOff.classList.add('text-gray-500', 'font-medium');
+                textOff.classList.remove('text-blue-600', 'font-bold');
+            } else {
+                toggleBtn.classList.remove('toggle-on', 'bg-blue-500');
+                toggleBtn.classList.add('toggle-off', 'bg-gray-300');
+                textOff.classList.add('text-blue-600', 'font-bold');
+                textOff.classList.remove('text-gray-500', 'font-medium');
+                textOn.classList.add('text-gray-500', 'font-medium');
+                textOn.classList.remove('text-blue-600', 'font-bold');
+            }
+
+            const stateKey = isAutoLevelingOn ? 'on' : 'off';
+            const currentData = teaserData[currentTeaserSample][stateKey];
+
+            document.getElementById('teaser-input').src = currentData.input;
+            document.getElementById('teaser-projected').src = currentData.projected;
+            document.getElementById('teaser-final').src = currentData.final;
+            // Don't update seam here immediately — let the animation handle it
+            // document.getElementById('teaser-seam').src = currentData.seam;
+
+            if (playAnim) {
+                playTeaserAnimation(currentData.seam);
+            } else {
+                // On initial load (no animation), just set it directly
+                document.getElementById('teaser-seam').src = currentData.seam;
+            }
+        }
+
+        function generateNoise(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            
+            const rect = canvas.getBoundingClientRect();
+            const width = Math.max(Math.floor(rect.width), 256);
+            const height = Math.max(Math.floor(rect.height), 128);
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.createImageData(width, height);
+            const data = imageData.data;
+            
+            function gaussianRandom(mean, stddev) {
+                let u1 = Math.random();
+                let u2 = Math.random();
+                let z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+                return Math.min(255, Math.max(0, mean + z0 * stddev));
+            }
+            
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = gaussianRandom(128, 50);       // R — independent
+                data[i + 1] = gaussianRandom(128, 50);   // G — independent
+                data[i + 2] = gaussianRandom(128, 50);   // B — independent
+                data[i + 3] = 255;                        // A
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        function playTeaserAnimation(seamSrc) {
+            const noiseOverlay = document.getElementById('teaser-diffusion-overlay');
+            
+            clearTimeout(animStep1);
+            clearTimeout(animStep2);
+
+            // Generate fresh Gaussian noise
+            generateNoise('teaser-noise-canvas');
+
+            // Hide seam during diffusion
+            const seamImg = document.getElementById('teaser-seam');
+            seamImg.style.opacity = '0';
+
+            // Phase 1: INSTANT RESET
+            noiseOverlay.style.transition = 'none';
+            noiseOverlay.style.opacity = '1';
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    noiseOverlay.style.transition = 'opacity 1.5s ease-in-out';
+                    
+                    animStep1 = setTimeout(() => {
+                        noiseOverlay.style.opacity = '0';
+                    }, 100);
+
+                    // Reveal seam after noise fully fades (0.1s hold + 1.5s fade = 1.6s)
+                    animStep2 = setTimeout(() => {
+                        if (seamSrc) seamImg.src = seamSrc;
+                        seamImg.style.transition = 'opacity 0.5s ease-in-out';
+                        seamImg.style.opacity = '1';
+                    }, 800);
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            initViewer();
+            initGallery();
+            initTeaser();
+        });
+
+
+
+    </script>
+</body>
+
+</html>
+
