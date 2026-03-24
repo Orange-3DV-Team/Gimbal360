@@ -853,23 +853,42 @@ url={https://orange-3dv-team.github.io/MoCam}
 
 
         /* =========================================================================
-        Asset Preloader
+        Asset Preloader (Background)
         ========================================================================= */
-        function preloadImages(urls) {
-            return Promise.all(urls.map(url => {
-                return new Promise((resolve, reject) => {
-                    const img = new Image();
-                    img.onload = resolve;
-                    img.onerror = resolve; // Resolve even on error to not block everything
-                    img.src = url;
+        function preloadImagesInBackground(urls) {
+            // Load images one batch at a time to avoid overwhelming the browser
+            const batchSize = 5;
+            let index = 0;
+            
+            function loadBatch() {
+                const batch = urls.slice(index, index + batchSize);
+                if (batch.length === 0) return;
+                
+                Promise.all(batch.map(url => {
+                    return new Promise(resolve => {
+                        const img = new Image();
+                        img.onload = resolve;
+                        img.onerror = resolve;
+                        img.src = url;
+                    });
+                })).then(() => {
+                    index += batchSize;
+                    // Use requestIdleCallback if available, otherwise setTimeout
+                    if (window.requestIdleCallback) {
+                        requestIdleCallback(loadBatch);
+                    } else {
+                        setTimeout(loadBatch, 100);
+                    }
                 });
-            }));
+            }
+            
+            loadBatch();
         }
 
         function getAllAssetUrls() {
             const urls = [];
             
-            // Teaser assets
+            // Teaser assets (load first — they're visible on page load)
             teaserData.forEach(sample => {
                 urls.push(sample.thumb);
                 ['on', 'off'].forEach(state => {
@@ -880,34 +899,27 @@ url={https://orange-3dv-team.github.io/MoCam}
                 });
             });
             
-            // Gallery/viewer assets
+            // Gallery/viewer assets (load later — below the fold)
             panoramas.forEach(pano => {
                 urls.push(pano.inputSrc);
                 urls.push(pano.panoSrc);
             });
             
-            // Static assets
             urls.push('./assets/gimbal360-logo.png');
             urls.push('./assets/diagrams/Framework.png');
             
-            // Deduplicate
             return [...new Set(urls)];
         }
 
         document.addEventListener('DOMContentLoaded', function () {
-            // Show a loading state (optional)
-            document.body.style.opacity = '0.5';
-            document.body.style.transition = 'opacity 0.5s ease';
+            // Initialize everything immediately — don't wait
+            initViewer();
+            initGallery();
+            initTeaser();
             
-            preloadImages(getAllAssetUrls()).then(() => {
-                // All images loaded — initialize everything
-                document.body.style.opacity = '1';
-                initViewer();
-                initGallery();
-                initTeaser();
-            });
+            // Preload remaining assets in the background
+            preloadImagesInBackground(getAllAssetUrls());
         });
-
 
     </script>
 </body>
