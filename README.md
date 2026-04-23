@@ -21,7 +21,7 @@ To support this formulation, we introduce Horizon360, a curated large-scale data
 ## 🔗 Links
 
 - 🌐 **Project Page**: [https://orange-3dv-team.github.io/Gimbal360](https://orange-3dv-team.github.io/Gimbal360)
-- 📄 **Paper**: Coming Soon
+- 📄 **Paper**: [https://arxiv.org/abs/2603.23179](https://arxiv.org/abs/2603.23179)
 - 💻 **Code**: Coming Soon
 - 🤗 **Dataset**: Coming Soon
 
