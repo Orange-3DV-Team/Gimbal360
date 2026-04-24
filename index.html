@@ -8,7 +8,13 @@
     <link rel="icon" type="image/png" sizes="64x64" href="./assets/gimbal360-favicon.png">
     <link rel="apple-touch-icon"  href="./assets/gimbal360-favicon.png">
 
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
 
     <!-- MathJax Configuration and Script -->
     <script>
@@ -19,7 +25,12 @@
         };
     </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-
+    <script>
+        if (localStorage.getItem('theme') === 'dark' ||
+            (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
     <!-- Include Three.js for the 360 viewer -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- Include Lucide icons -->
@@ -27,7 +38,7 @@
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #fafafa;
+            background-color: #fafafa; /* fafafa */
             color: #333;
         }
 
@@ -55,8 +66,8 @@
         }
 
         .gallery-item:hover {
-            transform: scale(1.02);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.2);
         }
 
         .active-thumb {
@@ -80,7 +91,6 @@
             background: #94a3b8; 
         }
 
-        /* Make sure MathJax inside bold tags inherits the boldness */
         .font-bold mjx-container[jax="CHTML"],
         h2 mjx-container,
         h3 mjx-container {
@@ -92,19 +102,6 @@
         .toggle-on .toggle-knob { transform: translateX(32px); } /* Fixed slide distance */
         .toggle-off .toggle-knob { transform: translateX(2px); }
         
-        /* Diffusion Noise Simulation */
-        /* .noise-bg {
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch' seed='0'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-            background-size: cover;
-        } */
-
-        /* Fallback styling for broken images during development
-        img {
-            background-color: #e5e7eb;
-            color: #6b7280;
-            text-align: center;
-            line-height: 2;
-        } */
 
         #teaser-noise-canvas {
             display: block;
@@ -112,64 +109,123 @@
             height: 100%;
         }
 
+
+        /* Dark Theme */
+        html.dark body {
+            background-color: #020202;
+            color: #e0e0e0;
+        }
+        html.dark .bg-white {
+            background-color: #1a1a1a ;
+        }
+        html.dark .bg-gray-50 {
+            background-color: #202020 !important;
+        }
+        html.dark .bg-gray-100 {
+            background-color: #252525 !important;
+        }
+        html.dark .text-gray-800,
+        html.dark .text-gray-700,
+        html.dark .text-gray-900 {
+            color: #f0f0f0 !important;
+        }
+        html.dark .text-gray-600 {
+            color: #a0a0a0 !important;
+        }
+        html.dark .border-gray-100,
+        html.dark .border-gray-200 {
+            border-color: #333 !important;
+        }
+        html.dark .shadow-xl {
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5) !important;
+        }
+
+        html.dark .gallery-item {
+            box-shadow: 0 5px 18px -4px rgba(255, 255, 255, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+
+        html.dark .gallery-item:hover {
+            box-shadow: 0 12px 28px -8px rgba(255, 255, 255, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.15);
+        }
+
+
+        html.dark .scroll-container::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        html.dark .scroll-container::-webkit-scrollbar-thumb {
+            background: #4a4a4a;
+        }
+        html.dark .scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #666;
+        }
+        /* Dark mode: use dark diagram */
+        html.dark .diagram-box img[src$=".png"] {
+            content: url('../assets/diagrams/Framework-dark.png');
+        }
+
     </style>
 </head>
 
 <body class="antialiased">
-
+    <!-- Theme Toggle -->
+    <div class="fixed top-4 right-4 z-50">
+        <button id="theme-toggle"
+            class="flex items-center gap-2 bg-white dark:bg-gray-800 text-gray-800 dark:text-white px-4 py-2 rounded-full font-medium shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300">
+            <i data-lucide="sun" class="w-5 h-5" id="theme-icon-light"></i>
+            <i data-lucide="moon" class="w-5 h-5 hidden" id="theme-icon-dark"></i>
+            <span id="theme-label" class="text-sm">Light</span>
+        </button>
+    </div>
     <!-- Header / Title Section -->
     <header class="max-w-7xl mx-auto px-4 pt-1 pb-8 text-center">
-        <!-- PLACEHOLDER: Insert your logo path here -->
-        <img src="./assets/gimbal360-logo.png" alt="Gimbal360 Logo" class="h-60 md:h-60 mx-auto mb-0 object-contain">
+        <img src="./assets/gimbal360-logo-light.jpg" alt="Gimbal360 Logo"
+         class="h-60 md:h-60 mx-auto mb-0 object-contain block dark:hidden" id="logo-light">
+        <img src="./assets/gimbal360-logo-dark.jpg" alt="Gimbal360 Logo"
+            class="h-60 md:h-60 mx-auto mb-0 object-contain hidden dark:block" id="logo-dark">
 
-        <!-- <h1 class="text-5xl md:text-5xl font-medium tracking-normal text-gray-800 mb-12 leading-relaxed">
-            <span
-                class="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-blue-500 to-purple-600">Gimbal360:</span>
-            Differentiable Auto-Leveling for Canonicalized \(360^\circ\)
-            <span class="text-gray-900">Panoramic Image Completion</span>
-        </h1> -->
         <h1 class="text-4xl md:text-5xl font-medium tracking-noraml text-gray-800 mb-6" style="line-height: 1.3;">
-            <span class="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-blue-500 to-purple-600">Gimbal360:</span>
+            <span class="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-blue-500 to-purple-600 dark:from-emerald-400 dark:via-cyan-300 dark:to-violet-400">Gimbal360:</span>
             Differentiable Auto-Leveling for Canonicalized <br> \(360^\circ\)
             <span class="text-gray-900">Panoramic Image Completion</span>
         </h1>
 
         <!-- Affiliations -->
         
-        <div class="text-2xl md:text-2xl font-medium text-gray-700  mb-4">
-            <p>Orange Team</p>
+        <div class="text-2xl md:text-2xl font-bold  mb-4">
+            <p class="text-orange-500">Orange Team</p>
         </div>
        
         <!-- Authors -->
         
-        <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-lg text-blue-600 mb-8 font-medium">
-            <a class="text-blue-600 transition-all duration-300 hover:text-purple-600 hover:bg-purple-100 px-2 py-1 rounded-md">Yuqin Lu</a>
-            <a href="https://scholar.google.com/citations?user=lF0WieAAAAAJ&hl=zh-CN"
-                class="text-blue-600 transition-all duration-300 hover:text-purple-600 hover:bg-purple-100 px-2 py-1 rounded-md">Haofeng Liu</a>
-            <a href="https://youngat19.github.io/"
-                class="text-blue-600 transition-all duration-300 hover:text-purple-600 hover:bg-purple-100 px-2 py-1 rounded-md">Yang Zhou</a>
-            <a class="text-blue-600 transition-all duration-300 hover:text-purple-600 hover:bg-purple-100 px-2 py-1 rounded-md">Jun Liang</a>
-            <a href="https://shengfenghe.github.io/"
-                class="text-blue-600 transition-all duration-300 hover:text-purple-600 hover:bg-purple-100 px-2 py-1 rounded-md">Shengfeng He</a>
-            <a class="text-blue-600 transition-all duration-300 hover:text-purple-600 hover:bg-purple-100 px-2 py-1 rounded-md">Jing Li</a>
+        <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-lg mb-8 font-medium">
+            <a class="text-blue-600 dark:text-blue-400 transition-all duration-300 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 px-2 py-1 rounded-md">Yuqin Lu</a>
+            <a href="https://scholar.google.com/citations?user=lF0WieAAAAAJ&hl=zh-CN" target="_blank" rel="noopener noreferrer"
+                class="text-blue-600 dark:text-blue-400 transition-all duration-300 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 px-2 py-1 rounded-md">Haofeng Liu</a>
+            <a href="https://youngat19.github.io/" target="_blank" rel="noopener noreferrer"
+                class="text-blue-600 dark:text-blue-400 transition-all duration-300 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 px-2 py-1 rounded-md">Yang Zhou</a>
+            <a class="text-blue-600 dark:text-blue-400 transition-all duration-300 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 px-2 py-1 rounded-md">Jun Liang</a>
+            <a href="https://shengfenghe.github.io/" target="_blank" rel="noopener noreferrer"
+                class="text-blue-600 dark:text-blue-400 transition-all duration-300 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 px-2 py-1 rounded-md">Shengfeng He</a>
+            <a class="text-blue-600 dark:text-blue-400 transition-all duration-300 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 px-2 py-1 rounded-md">Jing Li</a>
         </div>
        
 
         <!-- Links/Badges -->
         <div class="flex flex-wrap justify-center gap-5 mb-8">
-            <a href="https://arxiv.org/abs/2603.23179"
-                class="nav-link flex items-center gap-2 bg-gray-800 text-white px-5 py-2.5 rounded-full font-medium hover:bg-gray-700">
+            <a href="https://arxiv.org/abs/2603.23179" target="_blank" rel="noopener noreferrer"
+                class="nav-link flex items-center gap-2 bg-gray-800 dark:bg-gray-700 text-white px-5 py-2.5 rounded-full font-medium hover:bg-gray-700 dark:hover:bg-gray-600">
                 <i data-lucide="file-text" class="w-5 h-5"></i> Paper
             </a>
-            <a href="https://github.com/Orange-3DV-Team/Gimbal360/"
-                class="nav-link flex items-center gap-2 bg-gray-800 text-white px-5 py-2.5 rounded-full font-medium hover:bg-gray-700">
+            <a href="https://github.com/Orange-3DV-Team/Gimbal360/" target="_blank" rel="noopener noreferrer"
+                class="nav-link flex items-center gap-2 bg-gray-800 dark:bg-gray-700 text-white px-5 py-2.5 rounded-full font-medium hover:bg-gray-700 dark:hover:bg-gray-600">
                 <i data-lucide="github" class="w-5 h-5"></i> Code (Coming Soon)
             </a>
-            <a href="#"
-                class="nav-link flex items-center gap-2 bg-gray-800 text-white px-5 py-2.5 rounded-full font-medium hover:bg-gray-700">
+            <a href="#" target="_blank" rel="noopener noreferrer"
+                class="nav-link flex items-center gap-2 bg-gray-800 dark:bg-gray-700 text-white px-5 py-2.5 rounded-full font-medium hover:bg-gray-700 dark:hover:bg-gray-600">
                 <i data-lucide="database" class="w-5 h-5"></i> Dataset (Coming Soon)
             </a>
         </div>
+
     </header>
 
     <!-- Interactive Viewer & Result Selection Area -->
@@ -178,7 +234,6 @@
         <!-- Teaser Section: Auto-Leveling Comparison -->
         <section class="mb-8 border-gray-200 pb-8">
             <div class="flex flex-col items-center mb-8">
-                <!-- <h2 class="text-3xl font-bold text-gray-900 mb-2">TL;DR</h2> -->
                 <p class="text-gray-600 mb-6  max-w-6xl text-lg">
                     <strong>TL;DR</strong>: Gimbal360 robustly canonicalizes unposed perspective images using differentiable auto-leveling, enabling structurally consistent and seamless 360° panorama generation.
                 </p>
@@ -222,12 +277,12 @@
                         <!-- Layer 1 (BOTTOM, z-10): Final Generated ERP -->
                         <img id="teaser-final" src="./assets/teaser/sample1_final_on.png" class="absolute inset-0 w-full h-full object-cover z-10" alt="Final ERP">
                         
-                        <!-- Layer 2 (MIDDLE, z-20): Simulated Noise/Diffusion (Solid backdrop over Final Image) -->
+                        <!-- Layer 2 (MIDDLE, z-20): Simulated Noise/Diffusion -->
                         <div id="teaser-diffusion-overlay" class="absolute inset-0 z-20 transition-opacity">
                             <canvas id="teaser-noise-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
                         </div>
 
-                        <!-- Layer 3 (TOP, z-30): Projected Input (Permanent top layer with transparent background) -->
+                        <!-- Layer 3 (TOP, z-30): Projected Input -->
                         <img id="teaser-projected" src="./assets/teaser/sample1_projected_on.png" class="absolute inset-0 w-full h-full object-cover z-30" alt="Projected">
                         
                     </div>
@@ -237,9 +292,9 @@
                 <div class="flex flex-col" style="flex: 6;">
                     <h3 class="text-sm font-bold text-gray-700 mb-3 text-center flex items-center justify-center gap-1.5 h-10"><i data-lucide="zoom-in" class="w-4 h-4 text-blue-500"></i> Seam Visualization</h3>
                     
-                    <div class="w-full aspect-[2/3] max-w-[200px] lg:max-w-none mx-auto bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-inner relative group">
+                    <div class="w-full aspect-[2/3] max-w-[200px] lg:max-w-none mx-auto bg-gray-100 rounded-lg overflow-hidden border-4 border-red-500/90 shadow-inner relative group">
                         <img id="teaser-seam" src="./assets/teaser/sample1_seam_on.jpg" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="Seam">
-                        <div class="absolute inset-0 border-4 border-red-500/60 rounded-lg pointer-events-none"></div>
+                        <div class="absolute inset-0 rounded-lg pointer-events-none"></div>
                         <div class="absolute bottom-2 right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow">SEAM CROP</div>
                     </div>
                 </div>
@@ -248,7 +303,7 @@
 
 
         <!-- Viewer Layout -->
-        <h2 class="text-2xl font-bold mb-4 text-gray-900 border-b pb-2">Demo</h2>
+        <h2 class="text-2xl font-bold mb-4 text-gray-900 border-b dark:!border-gray-700 pb-2">Demo</h2>
         <div class="bg-white rounded-2xl shadow-xl p-4 md:p-6 mb-8 border border-gray-100">
             <div class="flex flex-col md:flex-row gap-6">
 
@@ -259,7 +314,7 @@
                     </h2>
                     <div
                         class="flex-grow flex flex-col justify-center ">
-                        <img id="current-input-image" src="" alt="Input Perspective" class="w-auto h-auto rounded-lg border border-gray-300 shadow-md">
+                        <img id="current-input-image" src="" alt="Input Perspective" class="w-auto h-auto rounded-lg shadow-md">
                     </div>
                 </div>
 
@@ -269,7 +324,7 @@
                         <i data-lucide="rotate-3d" class="text-blue-500"></i> Seamless 360° Panorama Generation
                     </h2>
                     <div class="flex-grow flex flex-col justify-center">
-                        <img id="current-erp-image" src="" alt="Full ERP Panorama" class="w-full aspect-[2/1] object-cover rounded-lg border border-gray-300 shadow-md">
+                        <img id="current-erp-image" src="" alt="Full ERP Panorama" class="w-full aspect-[2/1] object-cover rounded-lg shadow-md">
                     </div>
                 </div>
 
@@ -299,21 +354,22 @@
         </div>
 
         <!-- Gallery / Result Selection directly below the viewer -->
-        <section class="mb-16">
-            <div class="flex items-center justify-between mb-6 border-b pb-2">
+        <section class="mb-16" style="padding-left: 6px; padding-right: 6px;">
+            <div class="flex items-center justify-between mb-6 border-b dark:border-gray-700 pb-2">
                 <h3 class="text-xl font-bold text-gray-900">Select an Input</h3>
                 <p class="text-gray-600 text-sm">Click an image below to generate its panorama</p>
             </div>
 
-            <!-- <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6" id="gallery-container"> -->
-            <div class="flex overflow-x-auto gap-6 pb-6 pt-2 scroll-container snap-x" id="gallery-container">
-                <!-- Gallery items will be injected here by JS -->
+            <!-- Single scroll container -->
+            <div class="overflow-x-auto scroll-container pb-6 pt-2">
+                <div class="flex gap-6 snap-x" id="gallery-container">
+                </div>
             </div>
         </section>
 
         <!-- Abstract Section -->
         <section class="mb-16">
-            <h2 class="text-2xl font-bold mb-4 text-gray-900 border-b pb-2">Abstract</h2>
+            <h2 class="text-2xl font-bold mb-4 text-gray-900 border-b dark:border-gray-700 pb-2">Abstract</h2>
             <p class="text-gray-700 leading-relaxed text-lg text-justify">
                 Diffusion models excel at 2D outpainting, but extending them to \(360^\circ\) panoramic completion 
                 from unposed perspective images is challenging due to the geometric and topological mismatch between 
@@ -333,11 +389,11 @@
 
         <!-- Method Section -->
         <section class="mb-16">
-            <h2 class="text-2xl font-bold mb-4 text-gray-900 border-b pb-2">Methodology</h2>
-            <div class="bg-gray-50 rounded-xl p-6 text-center border border-gray-200 mb-6">
-                <!-- Architecture diagram image -->
-                <img src="./assets/diagrams/Framework.png" alt="Gimbal360 Architecture Diagram"
-                    class="w-full max-w-7xl mx-auto rounded-lg shadow-sm bg-gray-50">
+            <h2 class="text-2xl font-bold mb-4 text-gray-900 border-b dark:border-gray-700 pb-2">Methodology</h2>
+            <div class="bg-white rounded-2xl shadow-xl text-center border border-gray-100 mb-6">
+                <!-- Architecture diagram -->
+                <img id="method-diagram" src="./assets/diagrams/Framework.png" alt="Gimbal360 Architecture Diagram"
+                    class="w-full max-w-7xl mx-auto rounded-2xl p-8" >
             </div>
             <p class="text-gray-700 leading-relaxed text-lg">
                 Given a perspective sample from our <strong>Horizon360 Dataset</strong>, the <strong>Differentiable
@@ -349,13 +405,13 @@
             </p>
         </section>
 
-        <!-- Citation (Commented out for blind review) -->
+        <!-- Citation -->
         
         <section class="mb-16">
-            <h2 class="text-2xl font-bold mb-4 text-gray-900 border-b pb-2">BibTeX</h2>
+            <h2 class="text-2xl font-bold mb-4 text-gray-900 border-b dark:border-gray-700 pb-2">BibTeX</h2>
             <div class="bg-gray-100 p-4 rounded-lg overflow-x-auto">
                 <pre class="text-sm text-gray-800"><code>@article{orange2026gimbal360,
-    title={Gimbal360: Differentiable Auto-Leveling for Canonicalized \(360^\circ\) Panoramic Image Completion},
+    title={Gimbal360: Differentiable Auto-Leveling for Canonicalized 360° Panoramic Image Completion},
     author={Yuqin Lu and Haofeng Liu and Yang Zhou and Jun Liang and Shengfeng He and Jing Li},
     journal={arXiv},
     year={2026}
@@ -366,7 +422,6 @@
     </main>
 
     <footer class="bg-gray-900 text-gray-400 py-8 text-center">
-        <!-- <p>&copy; 2026 Vision & Graphics Lab. All rights reserved.</p> -->
         <p>&copy; 2026 Orange Team. All rights reserved.</p>
         <p class="text-sm mt-2">This project is intended solely for academic research and effect demonstration.</p>
     </footer>
@@ -374,6 +429,38 @@
     <script>
         // Initialize Icons
         lucide.createIcons();
+
+        /* ===== Theme Toggle ===== */
+        function initTheme() {
+            const saved = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (saved === 'dark' || (!saved && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            }
+            updateThemeIcon();
+
+            document.getElementById('theme-toggle').addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                const isDark = document.documentElement.classList.contains('dark');
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                updateThemeIcon();
+            
+                // Update diagram source
+                const diagramImg = document.getElementById('method-diagram');
+                if (diagramImg) {
+                    diagramImg.src = isDark ? './assets/diagrams/Framework-dark.png' : './assets/diagrams/Framework.png';
+                }
+
+            });
+        }
+
+        function updateThemeIcon() {
+            const isDark = document.documentElement.classList.contains('dark');
+            document.getElementById('theme-icon-light').classList.toggle('hidden', isDark);
+            document.getElementById('theme-icon-dark').classList.toggle('hidden', !isDark);
+            document.getElementById('theme-label').textContent = isDark ? 'Dark' : 'Light';
+        }
 
         /* =========================================================================
            Three.js 360 Viewer Setup
@@ -617,10 +704,10 @@
                 currentInputImg.src = panoramas[0].inputSrc;
                 currentErpImg.src = panoramas[0].panoSrc;
             }
-
+            
             panoramas.forEach((pano, index) => {
                 const div = document.createElement('div');
-                div.className = `gallery-item flex-none w-72 snap-start bg-white rounded-xl shadow-md overflow-hidden border-2 transition-all ${index === 0 ? 'border-blue-500 shadow-blue-200 shadow-lg' : 'border-transparent'}`;
+                div.className = `gallery-item flex-none w-72 snap-start bg-white rounded-xl shadow-md overflow-hidden border-2 transition-all ${index === 0 ? 'border-blue-500 shadow-blue-500/20 shadow-lg' : 'border-transparent'}`;
 
                 div.innerHTML = `
                     <div class="h-32 bg-gray-200 w-full overflow-hidden relative">
@@ -635,10 +722,10 @@
 
                 div.addEventListener('click', () => {
                     // Update active styling
-                    document.querySelectorAll('.gallery-item').forEach(el => el.classList.remove('border-blue-500', 'shadow-blue-200', 'shadow-lg'));
+                    document.querySelectorAll('.gallery-item').forEach(el => el.classList.remove('border-blue-500', 'shadow-blue-500/20', 'shadow-lg'));
                     document.querySelectorAll('.gallery-item').forEach(el => el.classList.add('border-transparent'));
                     div.classList.remove('border-transparent');
-                    div.classList.add('border-blue-500', 'shadow-blue-200', 'shadow-lg');
+                    div.classList.add('border-blue-500', 'shadow-blue-500/20', 'shadow-lg');
 
                     // Update Viewer and Input Image side-by-side using real URLs
                     updateViewerTexture(pano.panoSrc);
@@ -651,6 +738,7 @@
 
                 galleryContainer.appendChild(div);
             });
+
         }
         
         /* =========================================================================
@@ -908,14 +996,15 @@
                 urls.push(pano.panoSrc);
             });
             
-            urls.push('./assets/gimbal360-logo.png');
+            urls.push('./assets/gimbal360-logo-light.jpg');
+            urls.push('./assets/gimbal360-logo-dark.jpg');  
             urls.push('./assets/diagrams/Framework.png');
             
             return [...new Set(urls)];
         }
 
         document.addEventListener('DOMContentLoaded', function () {
-            // Initialize everything immediately — don't wait
+            initTheme();
             initViewer();
             initGallery();
             initTeaser();
